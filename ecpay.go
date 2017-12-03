@@ -56,8 +56,15 @@ type CreateTradeConfig struct {
 	ReturnURL string
 }
 
+// CreateTradeResponse ...
+type CreateTradeResponse struct {
+	ScriptURL  string
+	MerchantID string
+	SPToken    string
+}
+
 // CreateTrade ...
-func (ecpay *ECPay) CreateTrade(config CreateTradeConfig) (string, error) {
+func (ecpay *ECPay) CreateTrade(config *CreateTradeConfig) (*CreateTradeResponse, error) {
 	form := url.Values{
 		"MerchantID":        []string{ecpay.MerchantID},
 		"MerchantTradeNo":   []string{config.TradeNo},
@@ -84,24 +91,21 @@ func (ecpay *ECPay) CreateTrade(config CreateTradeConfig) (string, error) {
 	form.Set("CheckMacValue", CheckMacValue(result))
 	resp, err := http.Post(CreateTradeURLMap[ecpay.Environment], "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	rtncode := gjson.GetBytes(respBody, "RtnCode").String()
 	if rtncode != "1" {
-		return "", errors.New(string(respBody))
+		return nil, errors.New(string(respBody))
 	}
 	sptoken := gjson.GetBytes(respBody, "SPToken").String()
-	script := fmt.Sprintf(`
-<script src="%s"
- data-MerchantID="%s"
- data-SPToken="%s"
- data-PaymentType="CREDIT "
- data-PaymentName="信用卡">
-</script>`, ScriptURLMap[ecpay.Environment], ecpay.MerchantID, sptoken)
-	return script, nil
+	return &CreateTradeResponse{
+		ScriptURL:  ScriptURLMap[ecpay.Environment],
+		MerchantID: ecpay.MerchantID,
+		SPToken:    sptoken,
+	}, nil
 }
