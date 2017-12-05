@@ -43,6 +43,7 @@ type ECPay struct {
 	MerchantID    string
 	HashKey       string
 	HashIV        string
+	ReturnURL     string
 	CheckMacValue func(string) string
 }
 
