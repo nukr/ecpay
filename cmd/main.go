@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"math/rand"
 	"time"
 
@@ -23,7 +21,7 @@ func main() {
 		CheckMacValue: ecpay.CheckMacValue,
 	}
 
-	result, err := sdk.CreateTrade(ecpay.CreateTradeConfig{
+	sdk.AIOCheckout(&ecpay.CreateTradeConfig{
 		Amount:    5000,
 		Desc:      "hihi",
 		ItemName:  "gg",
@@ -31,10 +29,10 @@ func main() {
 		TradeDate: time.Now(),
 		TradeNo:   randomString(20),
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(result)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(result)
 }
 
 func randomString(strlen int) string {

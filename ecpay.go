@@ -1,6 +1,7 @@
 package ecpay
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -31,6 +32,12 @@ var CreateTradeURLMap = map[Environment]string{
 	Staging:    "https://payment-stage.ecpay.com.tw/SP/CreateTrade",
 }
 
+// CashierAIOCheckoutURLMap ...
+var CashierAIOCheckoutURLMap = map[Environment]string{
+	Production: "https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5",
+	Staging:    "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5",
+}
+
 // ScriptURLMap ...
 var ScriptURLMap = map[Environment]string{
 	Production: "https://payment.ecpay.com.tw/Scripts/SP/ECPayPayment_1.0.0.js",
@@ -49,12 +56,13 @@ type ECPay struct {
 
 // CreateTradeConfig ...
 type CreateTradeConfig struct {
-	Amount    int64
-	Desc      string
-	ItemName  string
-	TradeNo   string
-	TradeDate time.Time
-	ReturnURL string
+	Amount        int64
+	Desc          string
+	ItemName      string
+	TradeNo       string
+	TradeDate     time.Time
+	ReturnURL     string
+	ClientBackURL string
 }
 
 // CreateTradeResponse ...
@@ -109,4 +117,39 @@ func (ecpay *ECPay) CreateTrade(config *CreateTradeConfig) (*CreateTradeResponse
 		MerchantID: ecpay.MerchantID,
 		SPToken:    sptoken,
 	}, nil
+}
+
+// AIOCheckout ...
+func (ecpay *ECPay) AIOCheckout(config *CreateTradeConfig) ([]byte, error) {
+	form := map[string]string{
+		"MerchantID":        ecpay.MerchantID,
+		"MerchantTradeNo":   config.TradeNo,
+		"MerchantTradeDate": config.TradeDate.Format("2006/01/02 15:04:05"),
+		"PaymentType":       "aio",
+		"TotalAmount":       strconv.FormatInt(config.Amount, 10),
+		"TradeDesc":         config.Desc,
+		"ItemName":          config.ItemName,
+		"ReturnURL":         config.ReturnURL,
+		"ChoosePayment":     "ALL",
+		"ClientBackURL":     config.ClientBackURL,
+	}
+	var sortable [][]string
+	for k, v := range form {
+		sortable = append(sortable, []string{k, v})
+	}
+	sort.Slice(sortable, func(i, j int) bool {
+		return sortable[i][0] < sortable[j][0]
+	})
+	var temp []string
+	for _, s := range sortable {
+		temp = append(temp, strings.Join(s, "="))
+	}
+	result := fmt.Sprintf("HashKey=%s&%s&HashIV=%s", ecpay.HashKey, strings.Join(temp, "&"), ecpay.HashIV)
+	form["CheckMacValue"] = CheckMacValue(result)
+	form["url"] = CashierAIOCheckoutURLMap[ecpay.Environment]
+	zz, err := json.Marshal(form)
+	if err != nil {
+		return nil, err
+	}
+	return zz, nil
 }
